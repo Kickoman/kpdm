@@ -173,8 +173,8 @@ private:
 } // namespace Kpdm
 
 template<class T>
-auto kpdm(T& iterable) {
-    return Kpdm::kpdm_t(iterable);
+auto kpdm(T&& iterable) {
+    return Kpdm::kpdm_t(std::forward<T>(iterable));
 }
 
 template<class T>

@@ -1,9 +1,69 @@
 #pragma once
 
 #include <iostream>
+#include <iterator>
 
-class kpdm {
+namespace Kpdm {
+
+template<class T>
+class krange {
 public:
+    explicit krange(const T finish)
+        : start(0)
+        , finish(finish)
+        , step(1)
+    {}
+
+    krange(const T start, const T finish, const T step = 1)
+        : start(start)
+        , finish(finish)
+        , step(step)
+    {}
+
+    class Iterator {
+    public:
+        explicit Iterator(const T value, const T step) : step(step), current(value) {}
+        T operator*() const {
+            return current;
+        }
+        Iterator& operator++() {
+            current += step;
+            return *this;
+        }
+        Iterator& operator++(int) {
+            const auto old = *this;
+            current += step;
+            return old;
+        }
+        bool operator!=(const Iterator& other) const {
+            return current != other.current;
+        }
+        size_t operator-(const Iterator& other) const {
+            return current - other.current;
+        }
+    private:
+        const T step;
+        T current;
+    };
+    using iterator = Iterator;
+
+    iterator begin() const { return Iterator(start, step); }
+    iterator end() const { return Iterator(finish, step); }
+
+    size_t size() const { return (finish - start) / step; }
+
+private:
+    const T start;
+    const T finish;
+    const T step;
+};
+
+template<class T>
+class kpdm_t {
+public:
+    using underlying_iterator_type = decltype(std::begin(std::declval<T&>()));
+    using underlying_value_type = decltype(*std::begin(std::declval<T&>()));
+
     class printer {
     public:
         printer(int minValue, int maxValue) : minValue(minValue), maxValue((maxValue)) {}
@@ -48,48 +108,76 @@ public:
 
     class iterator {
     public:
-        iterator(int current, const printer& p) : p_device(p), current(current) {}
-        int operator*() const {
-            return current;
+        iterator(
+            underlying_iterator_type underlyingIterator,
+            const printer& printer
+        )   : underlyingIterator(underlyingIterator)
+            , p_device(printer)
+        {}
+
+        underlying_value_type operator*() const {
+            return *underlyingIterator;
         }
+
         iterator& operator++() {
-            ++current;
-            p_device.update(current);
+            ++iterations;
+            ++underlyingIterator;
+            p_device.update(iterations);
             return *this;
         }
         iterator operator++(int) {
             iterator old = *this;
-            ++current;
+            ++iterations;
+            ++underlyingIterator;
             return old;
         }
+
         bool operator!=(const iterator& other) const {
-            return current != other.current;
+            return underlyingIterator != other.underlyingIterator;
         }
     private:
         const printer& p_device;
-        int current;
+        underlying_iterator_type underlyingIterator;
+        unsigned long long iterations = 0;
     };
 
-    explicit kpdm(int finish) : p_device(0, finish), start(0), finish(finish) {
+    explicit kpdm_t(T& iterable)
+        : iterable(iterable)
+        , p_device(0, std::size(iterable))
+    {
         p_device.start();
     }
-    kpdm(int start, int finish) : p_device(start, finish), start(start), finish(finish) {
+
+    explicit kpdm_t(T&& iterable)
+        : localIterable(iterable)
+        , iterable(localIterable)
+        , p_device(0, std::size(iterable))
+    {
         p_device.start();
     }
-    ~kpdm() {
+
+    ~kpdm_t() {
         p_device.finish();
     }
 
-    iterator begin() const { return iterator(start, p_device); }
-    iterator end() const { return iterator(finish, p_device); }
+    iterator begin() const { return iterator(std::begin(iterable), p_device); }
+    iterator end() const { return iterator(std::end(iterable), p_device); }
 
-    static void SetStream(std::ostream& s) {
-        stream = &s;
-    }
 private:
-    static std::ostream* stream;
-
+    // dirty hack to store temp iterables
+    T localIterable;
+    T& iterable;
     printer p_device;
-    int start;
-    int finish;
 };
+
+} // namespace Kpdm
+
+template<class T>
+auto kpdm(T& iterable) {
+    return Kpdm::kpdm_t(iterable);
+}
+
+template<class T>
+auto kpdm(const T a, const T b) {
+    return Kpdm::kpdm_t(Kpdm::krange(a, b));
+}

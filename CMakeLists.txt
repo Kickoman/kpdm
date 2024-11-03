@@ -7,6 +7,8 @@ project(
     LANGUAGES CXX
 )
 
+set(CXX_STANDARD 20)
+
 add_subdirectory(include)
 add_subdirectory(example)
 

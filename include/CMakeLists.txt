@@ -1,0 +1,6 @@
+list(
+    APPEND HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/kpdm.h
+)
+
+set(HEADERS ${HEADERS} PARENT_SCOPE)
